@@ -1,6 +1,5 @@
 """Documentation ingestion tab implementation."""
 
-
 import logging
 import time
 from typing import Any, Dict, List
@@ -10,9 +9,12 @@ import gradio as gr
 from ...core.types import ProcessingStatus
 from ...github.file_loader import discover_repository_files, load_files_from_github
 from ...rag.ingestion import ingest_documents_async
-from ..components.common import (create_file_selector, create_progress_display,
-                                 create_status_textbox,
-                                 format_progress_display)
+from ..components.common import (
+    create_file_selector,
+    create_progress_display,
+    create_status_textbox,
+    format_progress_display,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +34,7 @@ class IngestionTab:
             )
 
             # Repository input section
-            with gr.Row():
+            with gr.Row(equal_height=True):
                 with gr.Column(scale=2):
                     repo_input = gr.Textbox(
                         label="📂 GitHub Repository URL",
@@ -40,6 +42,13 @@ class IngestionTab:
                         value="",
                         info="Enter any GitHub repository containing markdown documentation",
                     )
+
+                    branch_input = gr.Textbox(
+                        label="🌿 Branch (optional)",
+                        placeholder="Enter branch name (default: main)",
+                        value="main",
+                    )
+
                     load_btn = gr.Button(
                         "🔍 Discover Documentation Files", variant="secondary"
                     )
@@ -48,6 +57,7 @@ class IngestionTab:
                     status_output = create_status_textbox(
                         label="Repository Discovery Status",
                         placeholder="Repository scanning results will appear here...",
+                        lines=10,
                     )
 
             # File selection controls
@@ -88,58 +98,70 @@ class IngestionTab:
             progress_display = create_progress_display(
                 label="📊 Real-time Processing Progress",
                 initial_value="🚀 Ready to start two-step processing...\n\n📋 Steps:\n1️⃣ Load files from GitHub repository\n2️⃣ Generate embeddings and store in vector database",
-                lines=25,
+                lines=20,
             )
 
             # State management
             files_state = gr.State([])
             progress_state = gr.State({})
+            branch_state = gr.State("main")
 
             # Event handlers
             load_btn.click(
                 fn=self._discover_files,
-                inputs=[repo_input],
-                outputs=[file_selector, status_output, files_state, step1_btn],
-                show_api=False
+                inputs=[repo_input, branch_input],
+                outputs=[
+                    file_selector,
+                    status_output,
+                    files_state,
+                    step1_btn,
+                    branch_state,
+                ],
+                show_api=False,
             )
 
             select_all_btn.click(
-                fn=self._select_all_files, inputs=[files_state], outputs=[file_selector], show_api=False
+                fn=self._select_all_files,
+                inputs=[files_state],
+                outputs=[file_selector],
+                show_api=False,
             )
 
-            clear_all_btn.click(fn=self._clear_selection, outputs=[file_selector], show_api=False)
+            clear_all_btn.click(
+                fn=self._clear_selection, outputs=[file_selector], show_api=False
+            )
 
             # Use generator for real-time updates
             step1_btn.click(
                 fn=self._start_file_loading_generator,
-                inputs=[repo_input, file_selector, progress_state],
+                inputs=[repo_input, file_selector, progress_state, branch_state],
                 outputs=[progress_state, progress_display, step2_btn],
-                show_api=False
+                show_api=False,
             )
 
             step2_btn.click(
                 fn=self._start_vector_ingestion,
                 inputs=[progress_state],
                 outputs=[progress_state, progress_display],
-                show_api=False
+                show_api=False,
             )
 
             refresh_btn.click(
                 fn=self._refresh_progress,
                 inputs=[progress_state],
                 outputs=[progress_display],
-                show_api=False
+                show_api=False,
             )
 
             reset_btn.click(
                 fn=self._reset_progress,
                 outputs=[progress_state, progress_display, step2_btn],
-                show_api=False
+                show_api=False,
             )
 
         return tab
 
-    def _discover_files(self, repo_url: str):
+    def _discover_files(self, repo_url: str, branch: str = "main"):
         """Discover files in repository."""
         if not repo_url.strip():
             return (
@@ -147,21 +169,27 @@ class IngestionTab:
                 "Please enter a repository URL",
                 [],
                 gr.Button(interactive=False),
+                "main",
             )
 
+        # Use provided branch or default to main
+        if not branch.strip():
+            branch = "main"
+
         try:
-            files, message = discover_repository_files(repo_url)
+            files, message = discover_repository_files(repo_url, branch=branch)
 
             if files:
                 return (
                     create_file_selector(
                         choices=files,
-                        label=f"Select Files from {repo_url} ({len(files)} files)",
+                        label=f"Select Files from {repo_url}/{branch} ({len(files)} files)",
                         visible=True,
                     ),
                     message,
                     files,
                     gr.Button(interactive=True),
+                    branch,
                 )
             else:
                 return (
@@ -169,6 +197,7 @@ class IngestionTab:
                     message,
                     [],
                     gr.Button(interactive=False),
+                    branch,
                 )
         except Exception as e:
             logger.error(f"File discovery error: {e}")
@@ -177,6 +206,7 @@ class IngestionTab:
                 f"Error: {str(e)}",
                 [],
                 gr.Button(interactive=False),
+                branch,
             )
 
     def _select_all_files(self, available_files: List[str]):
@@ -190,11 +220,21 @@ class IngestionTab:
         return gr.CheckboxGroup(value=[])
 
     async def _start_file_loading_generator(
-        self, repo_url: str, selected_files: List[str], current_progress: Dict[str, Any]
+        self,
+        repo_url: str,
+        selected_files: List[str],
+        current_progress: Dict[str, Any],
+        branch: str = "main",
     ):
         """Start file loading with real-time generator updates."""
-        logger.info(f"Starting file loading for {len(selected_files)} files from {repo_url}")
-        
+        # Use provided branch or default to main
+        if not branch.strip():
+            branch = "main"
+
+        logger.info(
+            f"Starting file loading for {len(selected_files)} files from {repo_url}/{branch}"
+        )
+
         if not selected_files:
             error_progress = {
                 "status": ProcessingStatus.ERROR.value,
@@ -241,16 +281,17 @@ class IngestionTab:
             # Initial progress update
             initial_progress = {
                 "status": ProcessingStatus.LOADING.value,
-                "message": f"🚀 Starting file loading from {repo_name}",
+                "message": f"🚀 Starting file loading from {repo_name}/{branch}",
                 "progress": 0,
                 "total_files": total_files,
                 "processed_files": 0,
                 "successful_files": 0,
                 "failed_files": 0,
                 "phase": "File Loading",
-                "details": f"Preparing to load {total_files} files...",
+                "details": f"Preparing to load {total_files} files from branch '{branch}'...",
                 "step": "file_loading",
                 "repo_name": repo_name,
+                "branch": branch,
             }
             yield (
                 initial_progress,
@@ -260,9 +301,9 @@ class IngestionTab:
 
             time.sleep(0.5)
 
-            # Use the existing load_files_from_github function
+            # Use the existing load_files_from_github function with branch parameter
             documents, failed_files = await load_files_from_github(
-                repo_url, selected_files, branch="main", max_concurrent=10
+                repo_url, selected_files, branch=branch, max_concurrent=10
             )
 
             loading_time = time.time() - start_time
@@ -270,15 +311,20 @@ class IngestionTab:
             # Final completion update
             completion_progress = {
                 "status": ProcessingStatus.LOADED.value,
-                "message": f"✅ File Loading Complete! Loaded {len(documents)} documents",
+                "message": f"✅ File Loading Complete! Loaded {len(documents)} documents from {branch}",
                 "progress": 100,
                 "phase": "Files Loaded Successfully",
-                "details": f"🎯 Final Results:\n✅ Successfully loaded: {len(documents)} documents\n❌ Failed files: {len(failed_files)}\n⏱️ Total time: {loading_time:.1f}s\n📊 Success rate: {(len(documents) / (len(documents) + len(failed_files)) * 100):.1f}%" if (len(documents) + len(failed_files)) > 0 else "100%",
+                "details": (
+                    f"🎯 Final Results from branch '{branch}':\n✅ Successfully loaded: {len(documents)} documents\n❌ Failed files: {len(failed_files)}\n⏱️ Total time: {loading_time:.1f}s\n📊 Success rate: {(len(documents) / (len(documents) + len(failed_files)) * 100):.1f}%"
+                    if (len(documents) + len(failed_files)) > 0
+                    else "100%"
+                ),
                 "step": "file_loading_complete",
                 "loaded_documents": documents,
                 "failed_files": failed_files,
                 "loading_time": loading_time,
                 "repo_name": repo_name,
+                "branch": branch,
                 "total_files": total_files,
                 "processed_files": total_files,
                 "successful_files": len(documents),
@@ -298,9 +344,10 @@ class IngestionTab:
                 "message": f"❌ File loading error after {total_time:.1f}s",
                 "progress": 0,
                 "phase": "Loading Failed",
-                "details": f"Critical error during file loading:\n{str(e)}",
+                "details": f"Critical error during file loading from branch '{branch}':\n{str(e)}",
                 "error": str(e),
                 "step": "file_loading",
+                "branch": branch,
             }
             yield (
                 error_progress,
@@ -321,6 +368,7 @@ class IngestionTab:
 
         documents = current_progress.get("loaded_documents", [])
         repo_name = current_progress.get("repo_name", "")
+        branch = current_progress.get("branch", "main")
 
         if not documents:
             error_progress = {
@@ -334,10 +382,12 @@ class IngestionTab:
         vector_start_time = time.time()
 
         try:
-            logger.info(f"Starting vector ingestion for {len(documents)} documents")
+            logger.info(
+                f"Starting vector ingestion for {len(documents)} documents from {repo_name}/{branch}"
+            )
 
             # Run async ingestion without event loop issues
-            success = await ingest_documents_async(documents, repo_name)
+            success = await ingest_documents_async(documents, repo_name, branch=branch)
 
             vector_time = time.time() - vector_start_time
             loading_time = current_progress.get("loading_time", 0)
@@ -346,16 +396,20 @@ class IngestionTab:
             if success:
                 # Get failed files data safely
                 failed_files_data = current_progress.get("failed_files", [])
-                failed_files_count = len(failed_files_data) if isinstance(failed_files_data, list) else (
-                    failed_files_data if isinstance(failed_files_data, int) else 0
+                failed_files_count = (
+                    len(failed_files_data)
+                    if isinstance(failed_files_data, list)
+                    else (
+                        failed_files_data if isinstance(failed_files_data, int) else 0
+                    )
                 )
 
                 complete_progress = {
                     "status": ProcessingStatus.COMPLETE.value,
-                    "message": "🎉 Complete Processing Pipeline Finished!",
+                    "message": f"🎉 Complete Processing Pipeline Finished for {repo_name}/{branch}!",
                     "progress": 100,
                     "phase": "Complete",
-                    "details": f"Successfully processed {len(documents)} documents for {repo_name}",
+                    "details": f"Successfully processed {len(documents)} documents for {repo_name} from branch '{branch}'",
                     "step": "complete",
                     "total_time": total_time,
                     "documents_processed": len(documents),
@@ -364,6 +418,7 @@ class IngestionTab:
                     "vector_time": vector_time,
                     "loading_time": loading_time,
                     "repo_name": repo_name,
+                    "branch": branch,
                     "repository_updated": True,
                 }
             else:
@@ -382,8 +437,10 @@ class IngestionTab:
 
             # Get failed files data safely
             failed_files_data = current_progress.get("failed_files", [])
-            failed_files_count = len(failed_files_data) if isinstance(failed_files_data, list) else (
-                failed_files_data if isinstance(failed_files_data, int) else 0
+            failed_files_count = (
+                len(failed_files_data)
+                if isinstance(failed_files_data, list)
+                else (failed_files_data if isinstance(failed_files_data, int) else 0)
             )
 
             error_progress = {
@@ -396,6 +453,7 @@ class IngestionTab:
                 "step": "vector_ingestion",
                 "failed_files_count": failed_files_count,
                 "failed_files": failed_files_data,
+                "branch": branch,
             }
             return error_progress, format_progress_display(error_progress)
 

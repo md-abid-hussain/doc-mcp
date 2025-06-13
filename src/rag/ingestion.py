@@ -4,8 +4,7 @@ import logging
 import time
 from typing import Callable, List, Optional
 
-from llama_index.core import (Document, Settings, StorageContext,
-                              VectorStoreIndex)
+from llama_index.core import Document, Settings, StorageContext, VectorStoreIndex
 from llama_index.core.text_splitter import SentenceSplitter
 from llama_index.embeddings.nebius import NebiusEmbedding
 from llama_index.llms.nebius import NebiusLLM
@@ -45,7 +44,9 @@ class DocumentIngestionPipeline:
         if self.progress_callback:
             self.progress_callback(progress)
 
-    async def ingest_documents(self, documents: List[Document], repo_name: str) -> bool:
+    async def ingest_documents(
+        self, documents: List[Document], repo_name: str, branch: Optional[str] = "main"
+    ) -> bool:
         """
         Ingest documents into the vector store.
 
@@ -91,7 +92,7 @@ class DocumentIngestionPipeline:
             )
 
             # Create index and ingest documents
-            index = VectorStoreIndex.from_documents(
+            VectorStoreIndex.from_documents(
                 documents,
                 storage_context=storage_context,
                 show_progress=True,  # We handle progress ourselves
@@ -109,7 +110,7 @@ class DocumentIngestionPipeline:
             )
 
             # Update repository metadata
-            repository_manager.update_repository_info(repo_name, total_docs)
+            repository_manager.update_repository_info(repo_name, total_docs, branch)
 
             logger.info(
                 f"Successfully ingested {total_docs} documents for {repo_name} in {elapsed_time:.2f}s"
@@ -137,6 +138,7 @@ async def ingest_documents_async(
     documents: List[Document],
     repo_name: str,
     progress_callback: Optional[Callable[[IngestionProgress], None]] = None,
+    branch: Optional[str] = "main",
 ) -> bool:
     """
     Async wrapper for document ingestion.
@@ -150,4 +152,4 @@ async def ingest_documents_async(
         True if successful, False otherwise
     """
     pipeline = DocumentIngestionPipeline(progress_callback)
-    return await pipeline.ingest_documents(documents, repo_name)
+    return await pipeline.ingest_documents(documents, repo_name, branch)

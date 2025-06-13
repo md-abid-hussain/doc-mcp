@@ -7,8 +7,7 @@ import gradio as gr
 
 from ...database.repository import repository_manager
 from ...rag.query import create_query_retriever
-from ..components.common import (create_query_interface,
-                                 create_repository_dropdown)
+from ..components.common import create_query_interface, create_repository_dropdown
 
 logger = logging.getLogger(__name__)
 
@@ -68,27 +67,27 @@ class QueryTab:
                 fn=self._handle_repo_selection,
                 inputs=[repo_dropdown],
                 outputs=[repo_dropdown, selected_repo_textbox, query_btn],
-                show_api=False
+                show_api=False,
             )
 
             refresh_repos_btn.click(
                 fn=self._refresh_repositories,
                 outputs=[repo_dropdown, selected_repo_textbox, query_btn],
-                show_api=False
+                show_api=False,
             )
 
             query_btn.click(
                 fn=self._execute_query,
                 inputs=[selected_repo_textbox, query_mode, query_input],
                 outputs=[response_output, sources_output],
-                show_api=False
+                show_api=False,
             )
 
             query_input.submit(
                 fn=self._execute_query,
                 inputs=[selected_repo_textbox, query_mode, query_input],
                 outputs=[response_output, sources_output],
-                show_api=False
+                show_api=False,
             )
 
         return tab

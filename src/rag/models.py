@@ -42,4 +42,6 @@ class IngestionProgress(BaseModel):
     processed_documents: int = Field(description="Documents processed so far")
     current_phase: str = Field(description="Current processing phase")
     elapsed_time: float = Field(description="Elapsed time in seconds")
-    estimated_remaining: Optional[float] = Field(default=None, description="Estimated remaining time")
+    estimated_remaining: Optional[float] = Field(
+        default=None, description="Estimated remaining time"
+    )

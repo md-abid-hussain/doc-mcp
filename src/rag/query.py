@@ -5,8 +5,11 @@ import time
 from typing import Any, Dict
 
 from llama_index.core import Settings, VectorStoreIndex
-from llama_index.core.vector_stores import (FilterOperator, MetadataFilter,
-                                           MetadataFilters)
+from llama_index.core.vector_stores import (
+    FilterOperator,
+    MetadataFilter,
+    MetadataFilters,
+)
 from llama_index.embeddings.nebius import NebiusEmbedding
 from llama_index.llms.nebius import NebiusLLM
 
@@ -31,10 +34,10 @@ class QueryRetriever:
             model_name="BAAI/bge-en-icl",
             embed_batch_size=10,
         )
-        
+
         self.repo_name = repo_name
         self.vector_store_index = VectorStoreIndex.from_vector_store(get_vector_store())
-        
+
         # Create repository filter (matching your working code exactly)
         self.filters = MetadataFilters(
             filters=[
@@ -90,7 +93,9 @@ class QueryRetriever:
                     source_node = {
                         "file_name": node.metadata.get("file_name", "Unknown"),
                         "url": node.metadata.get("url", "#"),
-                        "score": float(node.score) if node.score else 0.0,  # Convert to float
+                        "score": (
+                            float(node.score) if node.score else 0.0
+                        ),  # Convert to float
                         "content": node.get_content(),  # Use get_content() method
                     }
                     source_nodes.append(source_node)
@@ -101,7 +106,9 @@ class QueryRetriever:
             # Format response (matching working code structure)
             processing_time = time.time() - start_time
             result = {
-                "response": str(response.response),  # Use response.response not str(response)
+                "response": str(
+                    response.response
+                ),  # Use response.response not str(response)
                 "source_nodes": source_nodes,
                 "repository": self.repo_name,
                 "mode": mode,

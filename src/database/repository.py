@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from ..core.config import settings
 from ..core.types import ProcessingStatus
@@ -97,7 +97,9 @@ class RepositoryManager:
             logger.error(f"Failed to get repository stats: {e}")
             return {"error": str(e)}
 
-    def update_repository_info(self, repo_name: str, file_count: int = 0) -> bool:
+    def update_repository_info(
+        self, repo_name: str, file_count: int = 0, branch: Optional[str] = "main"
+    ) -> bool:
         """Update repository information."""
         try:
             # Use the same structure as the working code
@@ -106,6 +108,7 @@ class RepositoryManager:
                 {
                     "_id": repo_name,
                     "repo_name": repo_name,
+                    "branch": branch,  # Store branch info if needed
                     "file_count": file_count,
                     "last_updated": datetime.now(),
                     "status": ProcessingStatus.COMPLETE.value,

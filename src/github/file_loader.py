@@ -1,7 +1,7 @@
 """File loading logic for GitHub repositories."""
 
 import logging
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 from llama_index.core import Document
 
@@ -101,8 +101,11 @@ async def load_files_from_github(
 
 
 def discover_repository_files(
-    repo_url: str, branch: str = "main", file_extensions: List[str] = None
-) -> Tuple[List[str], str]:
+    repo_url: str,
+    branch: str = "main",
+    file_extensions: List[str] = None,
+    include_sha: bool = False,
+) -> Tuple[List[str], str] | Tuple[List[Dict[str, str]], str]:
     """
     Discover files in a GitHub repository.
 
@@ -118,7 +121,9 @@ def discover_repository_files(
         file_extensions = [".md", ".mdx"]
 
     try:
-        return github_client.get_repository_tree(repo_url, branch, file_extensions)
+        return github_client.get_repository_tree(
+            repo_url, branch, file_extensions, include_sha=include_sha
+        )
     except Exception as e:
         logger.error(f"Failed to discover files in {repo_url}: {e}")
         return [], f"Error: {str(e)}"

@@ -97,28 +97,27 @@ class ManagementTab:
 
             # Event handlers
             refresh_stats_btn.click(
-                fn=self._load_repository_stats, outputs=[stats_display],
-                show_api=False
+                fn=self._load_repository_stats, outputs=[stats_display], show_api=False
             )
 
             refresh_repos_btn.click(
                 fn=self._refresh_all_data,
                 outputs=[repos_table, delete_repo_dropdown],
-                show_api=False
+                show_api=False,
             )
 
             delete_repo_dropdown.change(
                 fn=self._check_delete_button_state,
                 inputs=[delete_repo_dropdown, confirm_delete],
                 outputs=[delete_btn],
-                show_api=False
+                show_api=False,
             )
 
             confirm_delete.change(
                 fn=self._check_delete_button_state,
                 inputs=[delete_repo_dropdown, confirm_delete],
                 outputs=[delete_btn],
-                show_api=False
+                show_api=False,
             )
 
             delete_btn.click(
@@ -130,7 +129,7 @@ class ManagementTab:
                     confirm_delete,
                     repos_table,
                 ],
-                show_api=False
+                show_api=False,
             )
 
             # Load initial data when the demo loads
@@ -153,14 +152,14 @@ class ManagementTab:
             logger.error(f"Failed to load repository stats: {e}")
             return {"error": f"Failed to load statistics: {str(e)}"}
 
-    def _get_available_repositories(self) -> List[str]:
-        """Get available repositories for dropdown."""
-        try:
-            repos = repository_manager.get_available_repositories()
-            return repos if repos else []
-        except Exception as e:
-            logger.error(f"Failed to get available repositories: {e}")
-            return []
+    # def _get_available_repositories(self) -> List[str]:
+    #     """Get available repositories for dropdown."""
+    #     try:
+    #         repos = repository_manager.get_available_repositories()
+    #         return repos if repos else []
+    #     except Exception as e:
+    #         logger.error(f"Failed to get available repositories: {e}")
+    #         return []
 
     def _load_repository_details(self) -> Tuple[List[List], List[str]]:
         """Load repository details for table and dropdown."""
@@ -205,7 +204,7 @@ class ManagementTab:
         """Refresh both table and dropdown data."""
         try:
             table_data, dropdown_choices = self._load_repository_details()
-            
+
             # Create new dropdown component with updated choices
             updated_dropdown = gr.Dropdown(
                 choices=dropdown_choices,
@@ -214,10 +213,12 @@ class ManagementTab:
                 interactive=True,
                 allow_custom_value=False,
             )
-            
-            logger.info(f"Refreshed data: {len(table_data)} table rows, {len(dropdown_choices)} dropdown choices")
+
+            logger.info(
+                f"Refreshed data: {len(table_data)} table rows, {len(dropdown_choices)} dropdown choices"
+            )
             return table_data, updated_dropdown
-            
+
         except Exception as e:
             logger.error(f"Error refreshing data: {e}")
             return [["Error loading repositories", 0, str(e), "error"]], gr.Dropdown(

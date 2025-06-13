@@ -3,16 +3,19 @@
 import asyncio
 import base64
 import logging
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import aiohttp
 import requests
 from aiohttp import ClientTimeout
 
 from ..core.config import settings
-from ..core.exceptions import (GitHubAuthenticationError, GitHubError,
-                               GitHubRateLimitError,
-                               GitHubRepositoryNotFoundError)
+from ..core.exceptions import (
+    GitHubAuthenticationError,
+    GitHubError,
+    GitHubRateLimitError,
+    GitHubRepositoryNotFoundError,
+)
 from ..core.types import GitHubFileInfo
 from .parser import build_github_api_url, parse_github_url
 
@@ -53,7 +56,8 @@ class GitHubClient:
         repo_url: str,
         branch: str = "main",
         file_extensions: Optional[List[str]] = None,
-    ) -> Tuple[List[str], str]:
+        include_sha: bool = False,
+    ) -> Tuple[List[str], str] | Tuple[List[Dict[str, str]], str]:
         """Get repository file tree with optional extension filtering."""
 
         if file_extensions is None:
@@ -84,7 +88,11 @@ class GitHubClient:
                         file_path.lower().endswith(ext.lower())
                         for ext in file_extensions
                     ):
-                        filtered_files.append(file_path)
+                        if include_sha:
+                            file_data = {"path": file_path, "sha": item["sha"]}
+                            filtered_files.append(file_data)
+                        else:
+                            filtered_files.append(file_path)
 
             ext_str = ", ".join(file_extensions)
             message = f"Found {len(filtered_files)} files with extensions ({ext_str}) in {repo_name}/{branch}"
