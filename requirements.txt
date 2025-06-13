@@ -1,0 +1,39 @@
+# Doc-MCP Dependencies
+
+# Core dependencies
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Database
+pymongo>=4.6.0
+motor>=3.3.0
+
+# LlamaIndex
+llama-index>=0.10.0
+llama-index-vector-stores-mongodb>=0.1.0
+llama-index-embeddings-openai>=0.1.0
+llama-index-llms-openai>=0.1.0
+
+# GitHub integration
+aiohttp>=3.9.0
+requests>=2.31.0
+
+# UI
+gradio>=4.15.0
+
+# Async support
+asyncio-mqtt>=0.16.0
+
+# Logging and monitoring
+structlog>=23.2.0
+
+# Development dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+isort>=5.12.0
+mypy>=1.8.0
+
+# Optional: MCP server dependencies
+# Add MCP-specific packages here when available
