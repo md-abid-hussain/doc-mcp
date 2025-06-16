@@ -41,16 +41,18 @@ class RepositoryManager:
                     {"metadata.repo": repo_name}
                 )
 
+                # Get file tracking info
+                files_info = repo_doc.get("files", [])
+                tracked_files = len(files_info)
+
                 repos.append(
                     {
-                        "name": repo_name,  # Normalize to 'name' for UI consistency
-                        "files": repo_doc.get(
-                            "file_count", doc_count
-                        ),  # Use existing file_count or count docs
+                        "name": repo_name,
+                        "files": repo_doc.get("file_count", doc_count),
+                        "tracked_files": tracked_files,
+                        "branch": repo_doc.get("branch", "main"),
                         "last_updated": repo_doc.get("last_updated", "Unknown"),
-                        "status": repo_doc.get(
-                            "status", "complete"
-                        ),  # Default to complete for existing repos
+                        "status": repo_doc.get("status", "complete"),
                     }
                 )
 
@@ -67,9 +69,11 @@ class RepositoryManager:
 
             # Get total files across all repos
             total_files = 0
-            repos = self.repos_collection.find({}, {"file_count": 1})
+            total_tracked_files = 0
+            repos = self.repos_collection.find({}, {"file_count": 1, "files": 1})
             for repo in repos:
                 total_files += repo.get("file_count", 0)
+                total_tracked_files += len(repo.get("files", []))
 
             # Get collection size estimates
             try:
@@ -84,6 +88,7 @@ class RepositoryManager:
                 "total_repositories": total_repos,
                 "total_documents": total_docs,
                 "total_files": total_files,
+                "total_tracked_files": total_tracked_files,
                 "collection_size_bytes": collection_size,
                 "collection_size_mb": (
                     round(collection_size / (1024 * 1024), 2)
@@ -98,28 +103,209 @@ class RepositoryManager:
             return {"error": str(e)}
 
     def update_repository_info(
-        self, repo_name: str, file_count: int = 0, branch: Optional[str] = "main"
+        self,
+        repo_name: str,
+        file_count: int = 0,
+        branch: Optional[str] = "main",
+        files_with_sha: Optional[List[Dict[str, str]]] = None,
     ) -> bool:
-        """Update repository information."""
+        """Update repository information incrementally."""
         try:
-            # Use the same structure as the working code
-            self.repos_collection.replace_one(
-                {"_id": repo_name},
-                {
+            if files_with_sha is None:
+                files_with_sha = []
+
+            # Get existing repository data
+            existing_repo = self.repos_collection.find_one({"_id": repo_name})
+
+            if existing_repo:
+                # INCREMENTAL UPDATE: Merge with existing files
+                existing_files = existing_repo.get("files", [])
+                existing_file_lookup = {f["path"]: f for f in existing_files}
+
+                # Update/add new files
+                for file_info in files_with_sha:
+                    existing_file_lookup[file_info["path"]] = {
+                        "path": file_info["path"],
+                        "sha": file_info["sha"],
+                        "last_ingested": datetime.now(),
+                        "status": "ingested",
+                    }
+
+                # Convert back to list
+                merged_files = list(existing_file_lookup.values())
+
+                # Update only specific fields, don't replace entire document
+                update_operation = {
+                    "$set": {
+                        "files": merged_files,
+                        "file_count": len(merged_files),  # Use actual count
+                        "last_updated": datetime.now(),
+                        "status": ProcessingStatus.COMPLETE.value,
+                        "branch": branch,
+                        "tracking_enabled": True,
+                    }
+                }
+
+                # Use update_one instead of replace_one
+                self.repos_collection.update_one({"_id": repo_name}, update_operation)
+
+                logger.info(
+                    f"Incrementally updated repository info for: {repo_name} "
+                    f"(added/updated {len(files_with_sha)} files, total: {len(merged_files)})"
+                )
+            else:
+                # NEW REPOSITORY: Create fresh entry
+                file_tracking_data = []
+                for file_info in files_with_sha:
+                    file_tracking_data.append(
+                        {
+                            "path": file_info["path"],
+                            "sha": file_info["sha"],
+                            "last_ingested": datetime.now(),
+                            "status": "ingested",
+                        }
+                    )
+
+                update_data = {
                     "_id": repo_name,
                     "repo_name": repo_name,
-                    "branch": branch,  # Store branch info if needed
-                    "file_count": file_count,
+                    "branch": branch,
+                    "file_count": len(file_tracking_data),
+                    "files": file_tracking_data,
                     "last_updated": datetime.now(),
                     "status": ProcessingStatus.COMPLETE.value,
-                },
-                upsert=True,
-            )
-            logger.info(f"Updated repository info for: {repo_name}")
+                    "tracking_enabled": True,
+                }
+
+                self.repos_collection.insert_one(update_data)
+                logger.info(
+                    f"Created new repository tracking for: {repo_name} "
+                    f"with {len(file_tracking_data)} files"
+                )
+
             return True
+
         except Exception as e:
             logger.error(f"Failed to update repository info for {repo_name}: {e}")
             return False
+
+    def get_repository_files(self, repo_name: str) -> List[Dict[str, Any]]:
+        """Get tracked files for a repository."""
+        try:
+            repo_doc = self.repos_collection.find_one({"_id": repo_name})
+            if repo_doc:
+                return repo_doc.get("files", [])
+            return []
+        except Exception as e:
+            logger.error(f"Failed to get repository files for {repo_name}: {e}")
+            return []
+
+    def detect_file_changes(
+        self, repo_name: str, current_files: List[Dict[str, str]]
+    ) -> Dict[str, List[Dict[str, str]]]:
+        """
+        Detect changes in repository files by comparing SHAs.
+
+        Args:
+            repo_name: Repository name
+            current_files: List of current files with path and sha
+
+        Returns:
+            Dictionary with 'new', 'modified', 'deleted', and 'unchanged' file lists
+        """
+        try:
+            logger.info(f"=== DEBUGGING detect_file_changes for {repo_name} ===")
+
+            # Get stored files from database
+            stored_files = self.get_repository_files(repo_name)
+            logger.info(f"Stored files in DB: {len(stored_files)}")
+
+            # Create lookup for stored files
+            stored_lookup = {}
+            for file_entry in stored_files:
+                path = file_entry.get("path", file_entry.get("file_path", ""))
+                sha = file_entry.get("sha", "")
+                stored_lookup[path] = sha
+
+            logger.info(f"Stored lookup keys: {list(stored_lookup.keys())[:5]}...")
+
+            # Check current files
+            logger.info(f"Current files from GitHub: {len(current_files)}")
+            if current_files:
+                logger.info(f"Sample current file: {current_files[0]}")
+
+            new_files = []
+            modified_files = []
+            unchanged_files = []
+
+            for file_info in current_files:
+                path = file_info["path"]
+                current_sha = file_info["sha"]
+
+                if path not in stored_lookup:
+                    # Truly new file
+                    new_files.append(file_info)
+                    logger.debug(f"NEW: {path}")
+                elif stored_lookup[path] != current_sha:
+                    # Modified file (SHA changed)
+                    modified_files.append(file_info)
+                    logger.debug(
+                        f"MODIFIED: {path} (stored: {stored_lookup[path][:8]}, current: {current_sha[:8]})"
+                    )
+                else:
+                    # Unchanged file
+                    unchanged_files.append(file_info)
+                    logger.debug(f"UNCHANGED: {path}")
+
+            # Check for deleted files
+            current_paths = {f["path"] for f in current_files}
+            deleted_files = []
+            for stored_path, stored_sha in stored_lookup.items():
+                if stored_path not in current_paths:
+                    deleted_files.append({"path": stored_path, "sha": stored_sha})
+                    logger.debug(f"DELETED: {stored_path}")
+
+            result = {
+                "new": new_files,
+                "modified": modified_files,
+                "deleted": deleted_files,
+                "unchanged": unchanged_files,
+            }
+
+            logger.info(
+                f"Change detection result: {len(new_files)} new, {len(modified_files)} modified, {len(deleted_files)} deleted, {len(unchanged_files)} unchanged"
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to detect changes for {repo_name}: {e}")
+            return {"new": [], "modified": [], "deleted": [], "unchanged": []}
+
+    def delete_specific_files(
+        self, repo_name: str, file_paths: List[str], branch: str = "main"
+    ) -> int:
+        """Delete specific files from the vector store."""
+        try:
+            # Create document IDs for the files to delete
+            doc_ids = [
+                f"{repo_name}:{branch}:{path}" for path in file_paths
+            ]  # Adjust branch if needed
+
+            # Delete from vector store
+            deleted_count = 0
+            for doc_id in doc_ids:
+                result = self.docs_collection.delete_many({"metadata.doc_id": doc_id})
+                deleted_count += result.deleted_count
+
+            logger.info(
+                f"Deleted {deleted_count} documents for {len(file_paths)} files from {repo_name}"
+            )
+            return deleted_count
+
+        except Exception as e:
+            logger.error(f"Failed to delete files from {repo_name}: {e}")
+            return 0
 
     def delete_repository_data(self, repo_name: str) -> Dict[str, Any]:
         """Delete all data for a repository."""

@@ -21,7 +21,8 @@ def create_document_from_file_info(
     try:
         owner, repo = parse_github_url(repo_name)
         web_url = build_github_web_url(owner, repo, file_info.path, branch)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to construct web URL for {file_info.path}: {e}")
         web_url = file_info.url
 
     # Create document metadata
@@ -104,7 +105,7 @@ def discover_repository_files(
     repo_url: str,
     branch: str = "main",
     file_extensions: List[str] = None,
-    include_sha: bool = False,
+    include_sha: bool = True,
 ) -> Tuple[List[str], str] | Tuple[List[Dict[str, str]], str]:
     """
     Discover files in a GitHub repository.
@@ -127,3 +128,79 @@ def discover_repository_files(
     except Exception as e:
         logger.error(f"Failed to discover files in {repo_url}: {e}")
         return [], f"Error: {str(e)}"
+
+
+def discover_repository_files_with_changes(
+    repo_url: str,
+    repo_name: str,
+    branch: str = "main",
+    file_extensions: List[str] = None,
+) -> Dict[str, any]:
+    """
+    Discover files and detect changes compared to stored repository state.
+
+    Args:
+        repo_url: GitHub repository URL
+        repo_name: Repository name for comparison
+        branch: Git branch name
+        file_extensions: List of file extensions to filter
+
+    Returns:
+        Dictionary with file discovery results and change detection
+    """
+    from ..database.repository import repository_manager
+
+    try:
+        # Get current files with SHA
+        current_files, message = discover_repository_files(
+            repo_url, branch, file_extensions, include_sha=True
+        )
+
+        if not current_files:
+            return {
+                "files": [],
+                "message": message,
+                "changes": {"new": [], "modified": [], "deleted": [], "unchanged": []},
+                "has_changes": False,
+            }
+
+        # Detect changes
+        changes = repository_manager.detect_file_changes(repo_name, current_files)
+
+        # Calculate change summary
+        total_changes = (
+            len(changes["new"]) + len(changes["modified"]) + len(changes["deleted"])
+        )
+        has_changes = total_changes > 0
+
+        # Create detailed message
+        if has_changes:
+            change_summary = f"Changes detected: {len(changes['new'])} new, {len(changes['modified'])} modified, {len(changes['deleted'])} deleted files"
+            detailed_message = f"{message}\n\n📊 Change Detection:\n{change_summary}"
+        else:
+            detailed_message = (
+                f"{message}\n\n✅ No changes detected - repository is up to date"
+            )
+
+        return {
+            "files": current_files,
+            "message": detailed_message,
+            "changes": changes,
+            "has_changes": has_changes,
+            "change_summary": {
+                "new_count": len(changes["new"]),
+                "modified_count": len(changes["modified"]),
+                "deleted_count": len(changes["deleted"]),
+                "unchanged_count": len(changes["unchanged"]),
+                "total_changes": total_changes,
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to discover files with changes for {repo_url}: {e}")
+        return {
+            "files": [],
+            "message": f"Error: {str(e)}",
+            "changes": {"new": [], "modified": [], "deleted": [], "unchanged": []},
+            "has_changes": False,
+        }

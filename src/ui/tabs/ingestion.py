@@ -7,14 +7,12 @@ from typing import Any, Dict, List
 import gradio as gr
 
 from ...core.types import ProcessingStatus
-from ...github.file_loader import discover_repository_files, load_files_from_github
+from ...github.file_loader import (discover_repository_files,
+                                   load_files_from_github)
 from ...rag.ingestion import ingest_documents_async
-from ..components.common import (
-    create_file_selector,
-    create_progress_display,
-    create_status_textbox,
-    format_progress_display,
-)
+from ..components.common import (create_file_selector, create_progress_display,
+                                 create_status_textbox,
+                                 format_progress_display)
 
 logger = logging.getLogger(__name__)
 
@@ -177,17 +175,25 @@ class IngestionTab:
             branch = "main"
 
         try:
-            files, message = discover_repository_files(repo_url, branch=branch)
+            files_data, message = discover_repository_files(repo_url, branch=branch)
 
-            if files:
+            if files_data:
+                # Extract file paths for the selector (backward compatibility)
+                if isinstance(files_data[0], dict):
+                    # New format: list of {"path": "...", "sha": "..."}
+                    file_paths = [file_info["path"] for file_info in files_data]
+                else:
+                    # Old format: list of file paths
+                    file_paths = files_data
+
                 return (
                     create_file_selector(
-                        choices=files,
-                        label=f"Select Files from {repo_url}/{branch} ({len(files)} files)",
+                        choices=file_paths,
+                        label=f"Select Files from {repo_url}/{branch} ({len(file_paths)} files)",
                         visible=True,
                     ),
                     message,
-                    files,
+                    files_data,  # Store the full data (with SHA) in state
                     gr.Button(interactive=True),
                     branch,
                 )
@@ -209,10 +215,17 @@ class IngestionTab:
                 branch,
             )
 
-    def _select_all_files(self, available_files: List[str]):
+    def _select_all_files(self, available_files_data):
         """Select all available files."""
-        if available_files:
-            return gr.CheckboxGroup(value=available_files)
+        if available_files_data:
+            # Handle both old format (list of paths) and new format (list of dicts)
+            if isinstance(available_files_data[0], dict):
+                # New format: extract file paths from dictionaries
+                file_paths = [file_info["path"] for file_info in available_files_data]
+                return gr.CheckboxGroup(value=file_paths)
+            else:
+                # Old format: already a list of file paths
+                return gr.CheckboxGroup(value=available_files_data)
         return gr.CheckboxGroup(value=[])
 
     def _clear_selection(self):
@@ -299,14 +312,20 @@ class IngestionTab:
                 gr.Button(interactive=False),
             )
 
-            time.sleep(0.5)
-
             # Use the existing load_files_from_github function with branch parameter
             documents, failed_files = await load_files_from_github(
                 repo_url, selected_files, branch=branch, max_concurrent=10
             )
 
             loading_time = time.time() - start_time
+
+            # Extract SHA information from loaded documents for tracking
+            files_with_sha = []
+            for doc in documents:
+                file_path = doc.metadata.get("file_path", "")
+                file_sha = doc.metadata.get("sha", "")
+                if file_path and file_sha:
+                    files_with_sha.append({"path": file_path, "sha": file_sha})
 
             # Final completion update
             completion_progress = {
@@ -322,6 +341,7 @@ class IngestionTab:
                 "step": "file_loading_complete",
                 "loaded_documents": documents,
                 "failed_files": failed_files,
+                "files_with_sha": files_with_sha,  # Add SHA tracking data
                 "loading_time": loading_time,
                 "repo_name": repo_name,
                 "branch": branch,
@@ -369,6 +389,7 @@ class IngestionTab:
         documents = current_progress.get("loaded_documents", [])
         repo_name = current_progress.get("repo_name", "")
         branch = current_progress.get("branch", "main")
+        files_with_sha = current_progress.get("files_with_sha", [])
 
         if not documents:
             error_progress = {
@@ -387,7 +408,9 @@ class IngestionTab:
             )
 
             # Run async ingestion without event loop issues
-            success = await ingest_documents_async(documents, repo_name, branch=branch)
+            success = await ingest_documents_async(
+                documents, repo_name, branch=branch, files_with_sha=files_with_sha
+            )
 
             vector_time = time.time() - vector_start_time
             loading_time = current_progress.get("loading_time", 0)
@@ -409,7 +432,7 @@ class IngestionTab:
                     "message": f"🎉 Complete Processing Pipeline Finished for {repo_name}/{branch}!",
                     "progress": 100,
                     "phase": "Complete",
-                    "details": f"Successfully processed {len(documents)} documents for {repo_name} from branch '{branch}'",
+                    "details": f"Successfully processed {len(documents)} documents for {repo_name} from branch '{branch}' with SHA tracking enabled",
                     "step": "complete",
                     "total_time": total_time,
                     "documents_processed": len(documents),
@@ -420,6 +443,7 @@ class IngestionTab:
                     "repo_name": repo_name,
                     "branch": branch,
                     "repository_updated": True,
+                    "sha_tracking_enabled": True,  # Indicate SHA tracking is active
                 }
             else:
                 complete_progress = {

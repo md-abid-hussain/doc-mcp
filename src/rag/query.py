@@ -5,11 +5,8 @@ import time
 from typing import Any, Dict
 
 from llama_index.core import Settings, VectorStoreIndex
-from llama_index.core.vector_stores import (
-    FilterOperator,
-    MetadataFilter,
-    MetadataFilters,
-)
+from llama_index.core.vector_stores import (FilterOperator, MetadataFilter,
+                                            MetadataFilters)
 from llama_index.embeddings.nebius import NebiusEmbedding
 from llama_index.llms.nebius import NebiusLLM
 
@@ -32,7 +29,7 @@ class QueryRetriever:
         Settings.embed_model = NebiusEmbedding(
             api_key=settings.nebius_api_key,
             model_name="BAAI/bge-en-icl",
-            embed_batch_size=10,
+            embed_batch_size=25,
         )
 
         self.repo_name = repo_name

@@ -7,7 +7,8 @@ import gradio as gr
 
 from ...database.repository import repository_manager
 from ...rag.query import create_query_retriever
-from ..components.common import create_query_interface, create_repository_dropdown
+from ..components.common import (create_query_interface,
+                                 create_repository_dropdown)
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,6 @@ class QueryTab:
                         "🔄 Refresh Repository List", variant="secondary", size="sm"
                     )
 
-                    # Query interface components
                     (
                         query_input,
                         query_mode,
@@ -54,13 +54,6 @@ class QueryTab:
                         response_output,
                         sources_output,
                     ) = create_query_interface()
-
-                with gr.Column(scale=2):
-                    gr.Markdown("### 📖 Source References")
-                    gr.Markdown(
-                        "View the exact documentation sources used to generate the response."
-                    )
-                    sources_output
 
             # Event handlers
             repo_dropdown.change(

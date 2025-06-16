@@ -47,9 +47,3 @@ class QueryError(DocMCPError):
     """Query processing errors."""
 
     pass
-
-
-class ConfigurationError(DocMCPError):
-    """Configuration-related errors."""
-
-    pass

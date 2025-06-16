@@ -45,14 +45,6 @@ class MongoDBClient:
         """Get collection by name."""
         return self.database[collection_name]
 
-    def close(self):
-        """Close MongoDB connection."""
-        if self._client:
-            self._client.close()
-            self._client = None
-            self._db = None
-            logger.info("MongoDB connection closed")
-
     def test_connection(self) -> bool:
         """Test MongoDB connection."""
         try:

@@ -7,7 +7,9 @@ from dotenv import load_dotenv
 
 from .tabs.ingestion import IngestionTab
 from .tabs.management import ManagementTab
+from .tabs.mcp import MCPTab
 from .tabs.query import QueryTab
+from .tabs.update import UpdateTab
 
 # Load environment variables
 load_dotenv()
@@ -26,6 +28,8 @@ class DocMCPApp:
         self.ingestion_tab = IngestionTab()
         self.query_tab = QueryTab()
         self.management_tab = None
+        self.mcp_tab = MCPTab()
+        self.update_tab = None
 
     def create_interface(self) -> gr.Blocks:
         """Create the main Gradio interface."""
@@ -40,6 +44,7 @@ class DocMCPApp:
             )
 
             self.management_tab = ManagementTab(demo)
+            self.update_tab = UpdateTab(demo)
 
             # Tabs
             with gr.Tabs():
@@ -48,9 +53,8 @@ class DocMCPApp:
                 self.management_tab.create_tab()
 
                 # Hidden API tab for programmatic access
-                with gr.TabItem("🔧 API", visible=False):
-                    gr.Markdown("### API Endpoints")
-                    gr.Markdown("This tab provides programmatic access to the system.")
+                self.mcp_tab.create_tab()
+                self.update_tab.create_tab()
 
         return demo
 

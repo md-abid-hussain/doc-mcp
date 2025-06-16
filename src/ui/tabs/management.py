@@ -152,15 +152,6 @@ class ManagementTab:
             logger.error(f"Failed to load repository stats: {e}")
             return {"error": f"Failed to load statistics: {str(e)}"}
 
-    # def _get_available_repositories(self) -> List[str]:
-    #     """Get available repositories for dropdown."""
-    #     try:
-    #         repos = repository_manager.get_available_repositories()
-    #         return repos if repos else []
-    #     except Exception as e:
-    #         logger.error(f"Failed to get available repositories: {e}")
-    #         return []
-
     def _load_repository_details(self) -> Tuple[List[List], List[str]]:
         """Load repository details for table and dropdown."""
         try:

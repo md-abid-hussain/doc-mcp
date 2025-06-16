@@ -61,33 +61,37 @@ def create_status_textbox(
 
 def create_query_interface() -> tuple:
     """Create query interface components."""
-    query_input = gr.Textbox(
-        label="Ask About Your Documentation",
-        placeholder="How do I implement a custom component? What are the available API endpoints?",
-        lines=3,
-        info="Ask natural language questions about your documentation",
-    )
+    with gr.Row():
+        with gr.Column(scale=2):
+            query_input = gr.Textbox(
+                label="Ask About Your Documentation",
+                placeholder="How do I implement a custom component? What are the available API endpoints?",
+                lines=5,
+                info="Ask natural language questions about your documentation",
+            )
 
-    query_mode = gr.Radio(
-        choices=["default", "text_search", "hybrid"],
-        label="Search Strategy",
-        value="default",
-        info="• default: Semantic similarity\n• text_search: Keyword matching\n• hybrid: Combined approach",
-    )
+            query_mode = gr.Radio(
+                choices=["default", "text_search", "hybrid"],
+                label="Search Strategy",
+                value="default",
+                info="• default: Semantic similarity\n• text_search: Keyword matching\n• hybrid: Combined approach",
+            )
 
-    query_button = gr.Button("🚀 Search Documentation", variant="primary", size="lg")
+            query_button = gr.Button(
+                "🚀 Search Documentation", variant="primary", size="lg"
+            )
 
-    response_output = gr.Textbox(
-        label="AI Assistant Response",
-        value="Your AI-powered documentation response will appear here...",
-        lines=10,
-        interactive=False,
-    )
+            sources_output = gr.JSON(
+                label="Source Citations & Metadata",
+                value={"message": "Source documentation excerpts will appear here..."},
+            )
 
-    sources_output = gr.JSON(
-        label="Source Citations & Metadata",
-        value={"message": "Source documentation excerpts will appear here..."},
-    )
+        with gr.Column(scale=2):
+            gr.Markdown("### 🤖 AI Assistant Response")
+            response_output = gr.Markdown(
+                label="AI Assistant Response",
+                show_copy_button=True,
+            )
 
     return query_input, query_mode, query_button, response_output, sources_output
 
@@ -103,9 +107,13 @@ def format_progress_display(progress_state: Dict[str, Any]) -> str:
     phase = progress_state.get("phase", "")
     details = progress_state.get("details", "")
 
-    # Enhanced progress bar
-    filled = int(progress / 2.5)  # 40 chars total
-    progress_bar = "█" * filled + "░" * (40 - filled)
+    # Safe progress bar calculation
+    try:
+        filled = max(0, min(int(progress / 2.5), 40))  # Ensure 0-40 range
+        progress_bar = "█" * filled + "░" * (40 - filled)
+    except (ZeroDivisionError, ValueError, TypeError):
+        progress_bar = "░" * 40
+        progress = 0
 
     # Status emoji mapping
     status_emoji = {
@@ -124,6 +132,10 @@ def format_progress_display(progress_state: Dict[str, Any]) -> str:
     output += f"📊 **Current Phase:** {phase}\n"
     output += f"📈 **Progress:** {progress:.1f}%\n"
     output += f"[{progress_bar}] {progress:.1f}%\n\n"
+
+    # Update mode indication
+    if progress_state.get("update_mode") == "incremental":
+        output += "🔄 **Update Mode:** Incremental (preserves existing files)\n\n"
 
     # Step-specific details for file loading
     if progress_state.get("step") == "file_loading":
@@ -155,7 +167,8 @@ def format_progress_display(progress_state: Dict[str, Any]) -> str:
             output += f"   • Stage: {phase}\n\n"
 
     # Detailed information
-    output += f"📝 **Details:**\n{details}\n"
+    if details:
+        output += f"📝 **Details:**\n{details}\n"
 
     # Final summary for completion
     if status == "complete":
@@ -165,18 +178,45 @@ def format_progress_display(progress_state: Dict[str, Any]) -> str:
         vector_time = progress_state.get("vector_time", 0)
         loading_time = progress_state.get("loading_time", 0)
         repo_name = progress_state.get("repo_name", "Unknown")
+        processing_time = progress_state.get("processing_time", total_time)
 
-        output += "\n🎊 **INGESTION COMPLETED SUCCESSFULLY!**\n"
+        update_mode = progress_state.get("update_mode", "standard")
+        mode_label = (
+            "INCREMENTAL UPDATE" if update_mode == "incremental" else "OPERATION"
+        )
+
+        output += f"\n🎊 **{mode_label} COMPLETED SUCCESSFULLY!**\n"
         output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         output += f"🎯 **Repository:** {repo_name}\n"
         output += f"📄 **Documents processed:** {docs_processed:,}\n"
-        output += f"❌ **Failed files:** {len(failed_files) if isinstance(failed_files, list) else failed_files}\n"
-        output += f"⏱️ **Total time:** {total_time:.1f} seconds\n"
-        output += f"   ├─ File loading: {loading_time:.1f}s\n"
-        output += f"   └─ Vector processing: {vector_time:.1f}s\n"
-        output += (
-            f"📊 **Processing rate:** {docs_processed / total_time:.1f} docs/second\n\n"
-        )
+
+        # Handle failed files safely
+        failed_count = 0
+        if isinstance(failed_files, list):
+            failed_count = len(failed_files)
+        elif isinstance(failed_files, int):
+            failed_count = failed_files
+
+        output += f"❌ **Failed files:** {failed_count}\n"
+
+        if processing_time > 0:
+            output += f"⏱️ **Total time:** {processing_time:.1f} seconds\n"
+            if loading_time > 0:
+                output += f"   ├─ File loading: {loading_time:.1f}s\n"
+            if vector_time > 0:
+                output += f"   └─ Vector processing: {vector_time:.1f}s\n"
+
+            # Safe division for processing rate
+            if docs_processed > 0 and processing_time > 0:
+                try:
+                    rate = docs_processed / processing_time
+                    output += f"📊 **Processing rate:** {rate:.1f} docs/second\n\n"
+                except ZeroDivisionError:
+                    output += "📊 **Processing rate:** N/A\n\n"
+
+        if update_mode == "incremental":
+            output += "🔄 **Mode:** Incremental update (existing files preserved)\n"
+
         output += "🚀 **Next Step:** Go to the 'Query Interface' tab to start asking questions!"
 
     elif status == "error":

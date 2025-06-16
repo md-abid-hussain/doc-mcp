@@ -1,10 +1,8 @@
 """Type definitions for Doc-MCP application."""
 
-from datetime import datetime
 from enum import Enum
-from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class QueryMode(str, Enum):
@@ -13,15 +11,6 @@ class QueryMode(str, Enum):
     DEFAULT = "default"
     TEXT_SEARCH = "text_search"
     HYBRID = "hybrid"
-
-
-class FileExtensions(str, Enum):
-    """Supported file extensions."""
-
-    MARKDOWN = ".md"
-    MARKDOWN_X = ".mdx"
-    TEXT = ".txt"
-    RESTRUCTURED_TEXT = ".rst"
 
 
 class ProcessingStatus(str, Enum):
@@ -63,32 +52,3 @@ class GitHubFileInfo(BaseModel):
     type: str
     encoding: str
     content: str
-
-
-class ProgressState(BaseModel):
-    """Progress tracking for operations."""
-
-    status: ProcessingStatus
-    message: str
-    progress: float = Field(ge=0, le=100)
-    phase: str = ""
-    details: str = ""
-    step: str = ""
-    total_files: int = 0
-    processed_files: int = 0
-    successful_files: int = 0
-    failed_files: int = 0
-    error: Optional[str] = None
-    repository_updated: bool = False
-    timestamp: datetime = Field(default_factory=datetime.now)
-
-
-class RepositoryInfo(BaseModel):
-    """Repository information structure."""
-
-    name: str
-    branch: str = "main"
-    total_files: int = 0
-    ingested_files: int = 0
-    last_updated: datetime
-    status: ProcessingStatus = ProcessingStatus.PENDING
