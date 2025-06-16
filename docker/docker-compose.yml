@@ -1,5 +1,7 @@
+# mongodb atlas for vector store
 services:
   mongodb:
+    container_name: mongodb-atlas
     hostname: mongodb
     image: mongodb/mongodb-atlas-local
     environment:

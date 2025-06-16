@@ -256,7 +256,7 @@ class UpdateTab:
                 show_api=False,
             )
 
-            self.demo.load(fn=self._get_available_repos, outputs=[repo_dropdown])
+            self.demo.load(fn=self._get_available_repos, outputs=[repo_dropdown], show_api=False)
 
         return tab
 
