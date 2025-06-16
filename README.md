@@ -4,7 +4,7 @@ Transform GitHub documentation repositories into intelligent, queryable knowledg
 
 ## ✨ Features
 
-- � **Semantic Search** - Find answers across documentation using natural language
+- **Semantic Search** - Find answers across documentation using natural language
 - 🤖 **AI-Powered Q&A** - Get intelligent responses with source citations
 - 📚 **Batch Processing** - Ingest entire repositories with progress tracking
 - 🔄 **Incremental Updates** - Detect and sync only changed files
@@ -58,6 +58,8 @@ python main.py
 ```
 
 Visit `http://localhost:7860` to access the web interface.
+
+Access MCP at `http://127.0.0.1:7860/gradio_api/mcp/sse`
 
 ## � Usage
 
@@ -117,13 +119,13 @@ For detailed guides see:
 - Development and contribution guide  
 - API reference and examples
 
-## �‍💻 Author
+## 💻 Author
 
 **Md Abid Hussain**
 - GitHub: [@md-abid-hussain](https://github.com/md-abid-hussain)
 - LinkedIn: [md-abid-hussain](https://www.linkedin.com/in/md-abid-hussain-52862b229/)
 
-## �📄 License
+## 📄 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
