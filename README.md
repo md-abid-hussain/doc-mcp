@@ -61,7 +61,7 @@ Visit `http://localhost:7860` to access the web interface.
 
 Access MCP at `http://127.0.0.1:7860/gradio_api/mcp/sse`
 
-## � Usage
+## Usage
 
 ### 1. Ingest Documentation
 - Navigate to "📥 Documentation Ingestion" tab
