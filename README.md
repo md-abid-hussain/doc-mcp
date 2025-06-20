@@ -2,6 +2,12 @@
 
 Transform GitHub documentation repositories into intelligent, queryable knowledge bases using RAG and MCP with automated workflow orchestration via Kestra.
 
+## 🎥 Demo Video
+
+[![Doc-MCP Demo](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRceMtWa5sWvcpsHVn6e7tFSwI3TfI6a2xp8Q&s)](https://youtu.be/54fX3fZg73Q)
+
+
+
 ## ✨ Features
 
 - **Semantic Search** - Find answers across documentation using natural language
