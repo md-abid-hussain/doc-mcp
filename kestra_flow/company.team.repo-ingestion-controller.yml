@@ -1,0 +1,36 @@
+id: repo-ingestion-controller
+namespace: company.team
+
+tasks:
+  - id: fetch-ingested-repo
+    type: io.kestra.plugin.mongodb.Find
+    connection:
+      uri: "{{secret('MONGO_URI')}}"
+    database: "{{secret('DB')}}"
+    collection: "{{secret('COLLECTION_NAME')}}"
+    projection:
+      _id: 0
+      files: 0
+
+  - id: for-each-repo
+    type: io.kestra.plugin.core.flow.ForEach
+    concurrencyLimit: 3
+    values: "{{ outputs['fetch-ingested-repo'].rows }}"
+    tasks:
+      - id: if-tracking-changes
+        type: io.kestra.plugin.core.flow.If
+        condition: "{{ json(taskrun.value).tracking_enabled == true }}"
+        then:
+          - id: trigger-repo-ingestion
+            type: io.kestra.plugin.core.flow.Subflow
+            namespace: company.team
+            flowId: single-repo-ingestion
+            wait: true
+            transmitFailed: true
+            inputs:
+              repo_name: "{{ json(parent.taskrun.value).repo_name }}"
+
+triggers:
+  - id: schedule-ingestion
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "@daily"

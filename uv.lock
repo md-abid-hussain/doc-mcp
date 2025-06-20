@@ -79,6 +79,12 @@ wheels = [
 ]
 
 [[package]]
+name = "amazon-ion"
+version = "0.13.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/35/61/689d4400a2f51cd2b118014b11063c6baafda3484ea5440c7cab1ec1944e/amazon.ion-0.13.0.tar.gz", hash = "sha256:18a41d3f1192e287ada981dd833af7b2d9cdc8406f3fbb1b54558b0ce36e85be", size = 796475 }
+
+[[package]]
 name = "annotated-types"
 version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -309,6 +315,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "dotenv" },
     { name = "gradio", extra = ["mcp"] },
+    { name = "kestra" },
     { name = "llama-index" },
     { name = "llama-index-embeddings-nebius" },
     { name = "llama-index-llms-nebius" },
@@ -326,6 +333,7 @@ dev = [
 requires-dist = [
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "gradio", extras = ["mcp"], specifier = ">=5.33.2" },
+    { name = "kestra", specifier = ">=0.23.0" },
     { name = "llama-index", specifier = ">=0.12.42" },
     { name = "llama-index-embeddings-nebius", specifier = ">=0.3.1" },
     { name = "llama-index-llms-nebius", specifier = ">=0.1.2" },
@@ -704,6 +712,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/dc/fe/0f5a938c54105553436dbff7a61dc4fed4b1b2c98852f8833beaf4d5968f/joblib-1.5.1.tar.gz", hash = "sha256:f4f86e351f39fe3d0d32a9f2c3d8af1ee4cec285aafcb27003dda5205576b444", size = 330475 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7d/4f/1195bbac8e0c2acc5f740661631d8d750dc38d4a32b23ee5df3cde6f4e0d/joblib-1.5.1-py3-none-any.whl", hash = "sha256:4719a31f054c7d766948dcd83e9613686b27114f190f717cec7eaa2084f8a74a", size = 307746 },
+]
+
+[[package]]
+name = "kestra"
+version = "0.23.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "amazon-ion" },
+    { name = "python-dateutil" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/29/d0/565a4036c2fc83c88e677b50231bf5d576eafed7f54df894e13ae17293a4/kestra-0.23.0.tar.gz", hash = "sha256:84ed64f569fee57a02710854297f869990f913c663bcd55c5b4ff88b1cfa1756", size = 10163 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0b/d6/0733b0d44ba58db38429208e4aa73172538f449ebb5bfd055433072094fb/kestra-0.23.0-py3-none-any.whl", hash = "sha256:505f3563adb4eb50d29c14f57a9eeecb9050a2e26022c93722992dd0b60d3ad0", size = 8838 },
 ]
 
 [[package]]

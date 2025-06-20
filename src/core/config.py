@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     server_host: str = Field(default="0.0.0.0", env="SERVER_HOST")
     server_port: int = Field(default=7860, env="SERVER_PORT")
 
+    # Kestra
+    kestra_hostname: str = Field(default="http://localhost:8080", env="KESTRA_HOSTNAME")
+
     class Config:
         env_file = ".env"
         case_sensitive = False

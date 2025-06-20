@@ -10,6 +10,7 @@ from .tabs.management import ManagementTab
 from .tabs.mcp import MCPTab
 from .tabs.query import QueryTab
 from .tabs.update import UpdateTab
+from .tabs.kestra_ui import KestraTab
 
 # Load environment variables
 load_dotenv()
@@ -30,6 +31,7 @@ class DocMCPApp:
         self.management_tab = None
         self.mcp_tab = MCPTab()
         self.update_tab = None
+        self.kestra_tab = None
 
     def create_interface(self) -> gr.Blocks:
         """Create the main Gradio interface."""
@@ -45,6 +47,7 @@ class DocMCPApp:
 
             self.management_tab = ManagementTab(demo)
             self.update_tab = UpdateTab(demo)
+            self.kestra_tab = KestraTab(demo)
 
             # Tabs
             with gr.Tabs():
@@ -55,6 +58,7 @@ class DocMCPApp:
                 # Hidden API tab for programmatic access
                 self.mcp_tab.create_tab()
                 self.update_tab.create_tab()
+                self.kestra_tab.create_tab()
 
         return demo
 
