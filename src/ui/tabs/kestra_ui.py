@@ -167,19 +167,16 @@ class KestraTab:
                 headers["Authorization"] = f"Bearer {self.kestra_api_token}"
 
             response = requests.get(
-                f"{self.kestra_hostname}/api/v1/flows",
+                f"{self.kestra_hostname}/api/v1/flows/company.team",
                 auth=auth,
                 headers=headers,
                 timeout=10
             )
 
             if response.status_code == 200:
-                flows_data = response.json()
-                total_flows = flows_data.get("total", 0)
                 
                 status_msg = "✅ **Server Connected**\n"
                 status_msg += f"🌐 Host: {self.kestra_hostname}\n"
-                status_msg += f"📊 Total Flows: {total_flows}\n"
                 status_msg += f"⏰ Response: {response.elapsed.total_seconds():.2f}s"
 
                 logger.info(f"Kestra server connection successful: {self.kestra_hostname}")
@@ -267,10 +264,10 @@ class KestraTab:
                 os.environ["KESTRA_USER"] = self.kestra_user
             if self.kestra_password:
                 os.environ["KESTRA_PASSWORD"] = self.kestra_password
-
+                
             # Prepare inputs
             inputs = {
-                "repository_url": repo_name,
+                "repo_name": repo_name,
                 "branch": "main"
             }
 
