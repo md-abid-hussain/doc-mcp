@@ -118,7 +118,7 @@ tasks:
           from llama_index.llms.nebius import NebiusLLM
 
           mongo_client = MongoClient('{{secret('MONGO_URI')}}')
-          doc_collection = mongo_client['{{secret('DB')}}']['{{vars.vector_collection_name}}']
+          doc_collection = mongo_client['{{secret('DB')}}']['{{secret('VECTOR_COLLECTION_NAME')}}']
           repo_collection = mongo_client['{{secret('DB')}}']['{{secret('COLLECTION_NAME')}}']
 
           # Remove old ingested docs
