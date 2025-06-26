@@ -1,6 +1,28 @@
 id: single-repo-ingestion
 namespace: company.team
 
+description: |
+  **Single Repository Incremental Documentation Ingestion**
+  
+  Intelligent workflow that detects and processes only changed files from a GitHub repository into a MongoDB vector store for RAG operations. Can be triggered by the `repo-ingestion-controller` subflow or executed independently.
+  
+  **Key Features:**
+  - **Change Detection**: Compares SHA hashes between GitHub and stored metadata
+  - **Incremental Processing**: Only processes modified files, not entire repository
+  - **Vector Embeddings**: Uses Nebius AI (BAAI/bge-en-icl) for semantic search capability
+  - **Smart Cleanup**: Removes outdated document versions before ingesting new content
+  - **Dual Execution**: Works as subflow dependency or standalone workflow
+  
+  **Process Flow:**
+  1. Fetches previously ingested file metadata from MongoDB
+  2. Retrieves current GitHub repository tree via API
+  3. Identifies changed files by comparing SHA hashes
+  4. Downloads and processes only modified files using LlamaIndex
+  5. Generates embeddings and stores in MongoDB Atlas Vector Search
+  6. Updates repository tracking metadata with ingestion status
+  
+  **Use Cases:** Documentation search systems, AI chatbots, knowledge bases, developer tools
+
 inputs:
   - id: repo_name
     type: STRING
@@ -10,7 +32,7 @@ inputs:
     defaults: "main"
 
 tasks:
-  - id: fetch-file-list
+  - id: fetch_file_list
     type: io.kestra.plugin.mongodb.Find
     connection:
       uri: "{{secret('MONGO_URI')}}"
@@ -21,7 +43,7 @@ tasks:
     projection:
       _id: 0
 
-  - id: get-repo-tree
+  - id: get_repo_tree
     type: io.kestra.plugin.scripts.python.Script
     beforeCommands:
       - pip install requests
@@ -39,14 +61,14 @@ tasks:
       tree = resp.json().get("tree", [])
       Kestra.outputs({'repo_files': [{'path': item['path'], 'sha': item['sha']} for item in tree if item['type'] == 'blob']})
 
-  - id: filter-updated-files
+  - id: filter_updated_files
     type: io.kestra.plugin.scripts.python.Script
     script: |
       from kestra import Kestra
 
 
-      ingested_files = {{outputs['fetch-file-list'].rows[0].files}}
-      github_tree = {{outputs['get-repo-tree'].vars.repo_files}}
+      ingested_files = {{outputs.fetch_file_list.rows[0].files}}
+      github_tree = {{outputs.get_repo_tree.vars.repo_files}}
 
 
       ingested_map = {f["path"]: f["sha"] for f in ingested_files}
@@ -69,11 +91,11 @@ tasks:
           'file_paths': [f["path"] for f in diffs]
       })
 
-  - id: if-has-changes
+  - id: if_has_changes
     type: io.kestra.plugin.core.flow.If
-    condition: "{{ outputs['filter-updated-files'].vars.has_changes }}"
+    condition: "{{ outputs.filter_updated_files.vars.has_changes }}"
     then:
-      - id: fetch-file-content
+      - id: fetch_file_content
         type: io.kestra.plugin.scripts.python.Script
         beforeCommands:
           - pip install github-file-loader
@@ -85,7 +107,7 @@ tasks:
           from github_file_loader import FileLoader
 
           file_loader = FileLoader("{{secret('GITHUB_API_TOKEN')}}")
-          files_to_fetch = {{ outputs['filter-updated-files'].vars.changed_files }}
+          files_to_fetch = {{ outputs.filter_updated_files.vars.changed_files }}
           print(files_to_fetch)
           file_paths = [file["path"] for file in files_to_fetch]
           fetched_files, _ = file_loader.load_files_sync("{{inputs.repo_name}}", file_paths, "{{inputs.branch}}" )
@@ -96,13 +118,10 @@ tasks:
           f.write(json.dumps(fetched_files_dict))
           f.close()
 
-      - id: ingest-docs
+      - id: ingest_docs
         type: io.kestra.plugin.scripts.python.Script
         beforeCommands:
-          - pip install llama-index==0.12.42 llama-index-embeddings-nebius==0.3.1 llama-index-llms-nebius==0.1.2 llama-index-vector-stores-mongodb==0.6.1 kestra
-        taskRunner:
-          type: io.kestra.plugin.scripts.runner.docker.Docker
-        containerImage: python:slim
+          - pip install llama-index==0.12.42 llama-index-embeddings-nebius==0.3.1 llama-index-llms-nebius==0.1.2 llama-index-vector-stores-mongodb==0.6.1
         script: |
           import os
           os.environ["TRANSFORMERS_VERBOSITY"] = "error"
@@ -165,7 +184,7 @@ tasks:
           Settings.llm = NebiusLLM(api_key="{{secret('NEBIUS_API_KEY')}}",model="meta-llama/Llama-3.3-70B-Instruct-fast")
           Settings.embed_model = NebiusEmbedding(api_key="{{secret('NEBIUS_API_KEY')}}", model_name="BAAI/bge-en-icl", embed_batch_size=25)
 
-          f = open("{{outputs['fetch-file-content'].outputFiles['temp.json']}}","r")
+          f = open("{{outputs.fetch_file_content.outputFiles['temp.json']}}","r")
           content = f.read()
           files_to_ingest = json.loads(content)
 
@@ -203,7 +222,7 @@ tasks:
               
               documents.append(document)
 
-          deleted_count = remove_outdated_files({{outputs['filter-updated-files'].vars.doc_ids}})
+          deleted_count = remove_outdated_files({{outputs.filter_updated_files.vars.doc_ids}})
 
           vector_store = MongoDBAtlasVectorSearch(
               mongodb_client=mongo_client,
@@ -223,7 +242,7 @@ tasks:
               storage_context=storage_context
           )
 
-          update_repo_info('{{inputs.repo_name}}', {{outputs['filter-updated-files'].vars.changed_files}})
+          update_repo_info('{{inputs.repo_name}}', {{outputs.filter_updated_files.vars.changed_files}})
 
           Kestra.outputs({
             'deleted_count': deleted_count
@@ -231,7 +250,7 @@ tasks:
 
       - id: log-ingestion-report
         type: io.kestra.plugin.core.log.Log
-        message: "{{inputs.repo_name}} updated with {{outputs['filter-updated-files'].vars.total_changes}} and removed old {{outputs['ingest-docs'].vars.deleted_count}}"
+        message: "{{inputs.repo_name}} updated with {{outputs.filter_updated_files.vars.total_changes}} and removed old {{outputs.ingest_docs.vars.deleted_count}}"
     else:
       - id: log-repo-not-changed
         type: io.kestra.plugin.core.log.Log
