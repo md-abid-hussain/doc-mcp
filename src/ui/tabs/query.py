@@ -7,8 +7,7 @@ import gradio as gr
 
 from ...database.repository import repository_manager
 from ...rag.query import create_query_retriever
-from ..components.common import (create_query_interface,
-                                 create_repository_dropdown)
+from ..components.common import create_query_interface, create_repository_dropdown
 
 logger = logging.getLogger(__name__)
 

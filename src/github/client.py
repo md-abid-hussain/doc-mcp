@@ -10,9 +10,12 @@ import requests
 from aiohttp import ClientTimeout
 
 from ..core.config import settings
-from ..core.exceptions import (GitHubAuthenticationError, GitHubError,
-                               GitHubRateLimitError,
-                               GitHubRepositoryNotFoundError)
+from ..core.exceptions import (
+    GitHubAuthenticationError,
+    GitHubError,
+    GitHubRateLimitError,
+    GitHubRepositoryNotFoundError,
+)
 from ..core.types import GitHubFileInfo
 from .parser import build_github_api_url, parse_github_url
 

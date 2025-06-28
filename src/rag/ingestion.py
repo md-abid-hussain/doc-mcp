@@ -4,8 +4,7 @@ import logging
 import time
 from typing import Callable, List, Optional
 
-from llama_index.core import (Document, Settings, StorageContext,
-                              VectorStoreIndex)
+from llama_index.core import Document, Settings, StorageContext, VectorStoreIndex
 from llama_index.core.text_splitter import SentenceSplitter
 from llama_index.embeddings.nebius import NebiusEmbedding
 from llama_index.llms.nebius import NebiusLLM

@@ -5,8 +5,11 @@ import time
 from typing import Any, Dict
 
 from llama_index.core import Settings, VectorStoreIndex
-from llama_index.core.vector_stores import (FilterOperator, MetadataFilter,
-                                            MetadataFilters)
+from llama_index.core.vector_stores import (
+    FilterOperator,
+    MetadataFilter,
+    MetadataFilters,
+)
 from llama_index.embeddings.nebius import NebiusEmbedding
 from llama_index.llms.nebius import NebiusLLM
 

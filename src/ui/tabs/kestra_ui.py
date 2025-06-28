@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import  Optional, Tuple
+from typing import Optional, Tuple
 
 import gradio as gr
 import requests
@@ -31,63 +31,59 @@ class KestraTab:
         """Create the Kestra workflow management tab interface."""
         with gr.TabItem("⚙️ Kestra Workflows", visible=True) as tab:
             gr.Markdown("### 🔄 Kestra Workflow Management")
-            gr.Markdown("Simple interface to check Kestra server status and trigger workflows.")
+            gr.Markdown(
+                "Simple interface to check Kestra server status and trigger workflows."
+            )
 
             # Server status section
             with gr.Row():
                 with gr.Column(scale=2):
                     with gr.Row():
                         check_status_btn = gr.Button(
-                            "🔍 Check Server Status", 
-                            variant="secondary",
-                            size="sm"
+                            "🔍 Check Server Status", variant="secondary", size="sm"
                         )
-                        
+
                     server_status = gr.Textbox(
                         label="Kestra Server Status",
                         value="Click 'Check Server Status' to verify connection...",
                         interactive=False,
-                        lines=3
+                        lines=3,
                     )
 
                 with gr.Column(scale=1):
                     hostname_input = gr.Textbox(
                         label="Kestra Hostname",
                         value=self.kestra_hostname,
-                        placeholder="http://localhost:8080"
+                        placeholder="http://localhost:8080",
                     )
 
             # Workflow execution section
             gr.Markdown("### 🚀 Workflow Execution")
-            
+
             with gr.Row():
                 with gr.Column(scale=1):
                     gr.Markdown("#### Batch Processing")
                     batch_controller_btn = gr.Button(
-                        "🔄 Run Repo Ingestion Controller",
-                        variant="primary",
-                        size="lg"
+                        "🔄 Run Repo Ingestion Controller", variant="primary", size="lg"
                     )
-                    
+
                 with gr.Column(scale=1):
                     gr.Markdown("#### Single Repository")
                     with gr.Row():
                         repo_dropdown = gr.Dropdown(
                             label="Select Repository from Database",
                             choices=[],
-                            interactive=True
+                            interactive=True,
                         )
                         refresh_repos_btn = gr.Button(
-                            "🔄",
-                            size="sm",
-                            variant="secondary"
+                            "🔄", size="sm", variant="secondary"
                         )
-                    
+
                     single_repo_btn = gr.Button(
                         "📦 Ingest Selected Repository",
                         variant="primary",
                         size="lg",
-                        interactive=False
+                        interactive=False,
                     )
 
             # Execution results
@@ -97,7 +93,7 @@ class KestraTab:
                         label="Execution Status",
                         value="No workflow executed yet...",
                         interactive=False,
-                        lines=6
+                        lines=6,
                     )
 
                 with gr.Column(scale=1):
@@ -105,7 +101,7 @@ class KestraTab:
                         label="Execution Logs",
                         value="Logs will appear here after execution...",
                         interactive=False,
-                        lines=6
+                        lines=6,
                     )
 
             # Event handlers
@@ -113,41 +109,37 @@ class KestraTab:
                 fn=self._check_server_status,
                 inputs=[hostname_input],
                 outputs=[server_status],
-                show_api=False
+                show_api=False,
             )
 
             refresh_repos_btn.click(
-                fn=self._load_repositories,
-                outputs=[repo_dropdown],
-                show_api=False
+                fn=self._load_repositories, outputs=[repo_dropdown], show_api=False
             )
 
             repo_dropdown.change(
                 fn=lambda repo: gr.Button(interactive=bool(repo)),
                 inputs=[repo_dropdown],
                 outputs=[single_repo_btn],
-                show_api=False
+                show_api=False,
             )
 
             batch_controller_btn.click(
                 fn=self._execute_batch_controller,
                 inputs=[hostname_input],
                 outputs=[execution_status, execution_logs],
-                show_api=False
+                show_api=False,
             )
 
             single_repo_btn.click(
                 fn=self._execute_single_repo,
                 inputs=[repo_dropdown, hostname_input],
                 outputs=[execution_status, execution_logs],
-                show_api=False
+                show_api=False,
             )
 
             # Load repositories on tab creation
             self.demo.load(
-                fn=self._load_repositories,
-                outputs=[repo_dropdown],
-                show_api=False
+                fn=self._load_repositories, outputs=[repo_dropdown], show_api=False
             )
 
         return tab
@@ -170,16 +162,17 @@ class KestraTab:
                 f"{self.kestra_hostname}/api/v1/flows/company.team",
                 auth=auth,
                 headers=headers,
-                timeout=10
+                timeout=10,
             )
 
             if response.status_code == 200:
-                
                 status_msg = "✅ **Server Connected**\n"
                 status_msg += f"🌐 Host: {self.kestra_hostname}\n"
                 status_msg += f"⏰ Response: {response.elapsed.total_seconds():.2f}s"
 
-                logger.info(f"Kestra server connection successful: {self.kestra_hostname}")
+                logger.info(
+                    f"Kestra server connection successful: {self.kestra_hostname}"
+                )
                 return status_msg
             else:
                 error_msg = "❌ **Connection Error**\n"
@@ -203,10 +196,10 @@ class KestraTab:
         try:
             # Use the repository_manager to get available repositories
             repo_choices = repository_manager.get_available_repositories()
-            
+
             logger.info(f"Loaded {len(repo_choices)} repositories from database")
             return gr.Dropdown(choices=repo_choices, value=None)
-            
+
         except Exception as e:
             logger.error(f"Failed to load repositories: {e}")
             return gr.Dropdown(choices=[], value=None)
@@ -222,24 +215,26 @@ class KestraTab:
                 os.environ["KESTRA_PASSWORD"] = self.kestra_password
 
             # Create Flow instance and execute (no inputs needed)
-            
+
             logger.info("Executing Kestra batch controller workflow")
-            
+
             result = self.flow.execute(
                 namespace="company.team",
                 flow="repo-ingestion-controller",
-                inputs={}  # No inputs required
+                inputs={},  # No inputs required
             )
 
             # Format execution status
             status_msg = "🚀 **Batch Controller Executed**\n\n"
-            status_msg += f"🆔 **Execution ID:** {getattr(result, 'execution_id', 'N/A')}\n"
+            status_msg += (
+                f"🆔 **Execution ID:** {getattr(result, 'execution_id', 'N/A')}\n"
+            )
             status_msg += f"📊 **Status:** {getattr(result, 'status', 'N/A')}\n"
             status_msg += "📋 **Workflow:** repo-ingestion-controller"
 
             # Format logs
-            logs_text = getattr(result, 'log', 'No logs available.')
-            if hasattr(result, 'error') and result.error:
+            logs_text = getattr(result, "log", "No logs available.")
+            if hasattr(result, "error") and result.error:
                 logs_text += f"\n\n❌ **Error:** {result.error}"
 
             logger.info("Batch controller workflow execution completed")
@@ -264,32 +259,28 @@ class KestraTab:
                 os.environ["KESTRA_USER"] = self.kestra_user
             if self.kestra_password:
                 os.environ["KESTRA_PASSWORD"] = self.kestra_password
-                
-            # Prepare inputs
-            inputs = {
-                "repo_name": repo_name,
-                "branch": "main"
-            }
 
-            
+            # Prepare inputs
+            inputs = {"repo_name": repo_name, "branch": "main"}
+
             logger.info(f"Executing single repo workflow for: {repo_name}")
-            
+
             result = self.flow.execute(
-                namespace="company.team",
-                flow="single-repo-ingestion",
-                inputs=inputs
+                namespace="company.team", flow="single-repo-ingestion", inputs=inputs
             )
 
             # Format execution status
             status_msg = "🚀 **Single Repo Ingestion Executed**\n\n"
             status_msg += f"📦 **Repository:** {repo_name}\n"
-            status_msg += f"🆔 **Execution ID:** {getattr(result, 'execution_id', 'N/A')}\n"
+            status_msg += (
+                f"🆔 **Execution ID:** {getattr(result, 'execution_id', 'N/A')}\n"
+            )
             status_msg += f"📊 **Status:** {getattr(result, 'status', 'N/A')}\n"
             status_msg += "🌿 **Branch:** main"
 
             # Format logs
-            logs_text = getattr(result, 'log', 'No logs available.')
-            if hasattr(result, 'error') and result.error:
+            logs_text = getattr(result, "log", "No logs available.")
+            if hasattr(result, "error") and result.error:
                 logs_text += f"\n\n❌ **Error:** {result.error}"
 
             logger.info(f"Single repo workflow execution completed: {repo_name}")
@@ -300,5 +291,7 @@ class KestraTab:
             error_msg += f"📦 **Repository:** {repo_name}\n"
             error_msg += f"📝 **Error:** {str(e)}"
 
-            logger.error(f"Single repo workflow execution failed: {repo_name} - {str(e)}")
+            logger.error(
+                f"Single repo workflow execution failed: {repo_name} - {str(e)}"
+            )
             return error_msg, f"Execution failed: {str(e)}"

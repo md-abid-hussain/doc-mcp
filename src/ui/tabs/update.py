@@ -8,13 +8,18 @@ import gradio as gr
 
 from ...core.types import ProcessingStatus
 from ...database.repository import repository_manager
-from ...github.file_loader import (discover_repository_files_with_changes,
-                                   load_files_from_github)
+from ...github.file_loader import (
+    discover_repository_files_with_changes,
+    load_files_from_github,
+)
 from ...rag.ingestion import ingest_documents_async
-from ..components.common import (create_file_selector, create_progress_display,
-                                 create_repository_dropdown,
-                                 create_status_textbox,
-                                 format_progress_display)
+from ..components.common import (
+    create_file_selector,
+    create_progress_display,
+    create_repository_dropdown,
+    create_status_textbox,
+    format_progress_display,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -256,7 +261,9 @@ class UpdateTab:
                 show_api=False,
             )
 
-            self.demo.load(fn=self._get_available_repos, outputs=[repo_dropdown], show_api=False)
+            self.demo.load(
+                fn=self._get_available_repos, outputs=[repo_dropdown], show_api=False
+            )
 
         return tab
 

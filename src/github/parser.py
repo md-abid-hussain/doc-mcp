@@ -1,7 +1,6 @@
 """GitHub URL and repository parsing utilities."""
 
-import re
-from typing import Optional, Tuple
+from typing import Tuple
 from urllib.parse import urlparse
 
 from ..core.exceptions import GitHubError
@@ -12,7 +11,10 @@ def parse_github_url(url: str) -> Tuple[str, str]:
     Parse GitHub URL to extract owner and repository name.
 
     Args:
-        url: GitHub URL in various formats
+        url: GitHub URL in various formats, including:
+            - https://github.com/owner/repo
+            - github.com/owner/repo
+            - owner/repo (without the domain part)
 
     Returns:
         Tuple of (owner, repo_name)
@@ -23,27 +25,23 @@ def parse_github_url(url: str) -> Tuple[str, str]:
     if not url or not url.strip():
         raise GitHubError("Empty URL provided")
 
-    url = url.strip()
+    url = url.strip().rstrip("/")  # Remove trailing slashes
 
-    # Handle different URL formats
-    patterns = [
-        # https://github.com/owner/repo
-        r"https?://github\.com/([^/]+)/([^/]+)/?",
-        # github.com/owner/repo
-        r"github\.com/([^/]+)/([^/]+)/?",
-        # owner/repo
-        r"^([^/]+)/([^/]+)/?$",
-    ]
+    # If the URL doesn't start with "http" or "github.com", assume it's in "owner/repo" format
+    if not url.startswith(("https://github.com", "github.com")):
+        url = "https://github.com/" + url
 
-    for pattern in patterns:
-        match = re.match(pattern, url)
-        if match:
-            owner, repo = match.groups()
-            # Clean up repo name (remove .git suffix if present)
-            repo = repo.rstrip(".git")
-            return owner, repo
+    # Use urlparse to parse the URL
+    parsed_url = urlparse(url)
 
-    raise GitHubError(f"Invalid GitHub URL format: {url}")
+    # Extract the path (which is typically in the form /owner/repo)
+    path_parts = parsed_url.path.strip("/").split("/")
+
+    if len(path_parts) == 2:
+        owner, repo = path_parts
+        return owner, repo
+    else:
+        raise GitHubError(f"Invalid GitHub URL format: {url}")
 
 
 def build_github_api_url(

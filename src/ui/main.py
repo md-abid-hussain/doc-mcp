@@ -6,11 +6,11 @@ import gradio as gr
 from dotenv import load_dotenv
 
 from .tabs.ingestion import IngestionTab
+from .tabs.kestra_ui import KestraTab
 from .tabs.management import ManagementTab
 from .tabs.mcp import MCPTab
 from .tabs.query import QueryTab
 from .tabs.update import UpdateTab
-from .tabs.kestra_ui import KestraTab
 
 # Load environment variables
 load_dotenv()
